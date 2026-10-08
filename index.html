@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: https://upload.wikimedia.org; media-src blob:; connect-src https://generativelanguage.googleapis.com https://ko.wikipedia.org; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="dark">
+<title>닮은꼴 연예인 찾기</title>
+<style>
+:root {
+  --bg: #0d0f13;
+  --bg-glow: #171c26;
+  --surface: #151920;
+  --surface-2: #1b212b;
+  --line: #2a313d;
+  --text: #eceff4;
+  --muted: #98a2b3;
+  --gold: #c8a96b;
+  --gold-soft: #e6d3a3;
+  --danger: #e5786d;
+  --ok: #6fbf9a;
+  --radius: 18px;
+  --font: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font);
+  color: var(--text);
+  background:
+    radial-gradient(900px 500px at 15% -10%, var(--bg-glow) 0%, transparent 60%),
+    radial-gradient(700px 400px at 100% 0%, #1a1712 0%, transparent 55%),
+    var(--bg);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 760px; margin: 0 auto; padding: 40px 18px 56px; }
+header { text-align: center; margin-bottom: 28px; }
+.eyebrow {
+  display: inline-block; font-size: 12px; letter-spacing: .32em; color: var(--gold);
+  border: 1px solid rgba(200,169,107,.4); border-radius: 999px; padding: 6px 14px; margin-bottom: 16px;
+}
+h1 { margin: 0 0 10px; font-size: clamp(26px, 5.4vw, 38px); font-weight: 800; letter-spacing: -.02em; }
+h1 span { color: var(--gold-soft); }
+.lead { margin: 0 auto; max-width: 480px; color: var(--muted); font-size: 15px; }
+
+.panel {
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.35);
+}
+.panel + .panel { margin-top: 18px; }
+
+.drop {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  gap: 8px; min-height: 190px; padding: 24px; border-radius: 14px; cursor: pointer;
+  border: 1.5px dashed rgba(200,169,107,.45); background: rgba(200,169,107,.04);
+  transition: background .2s, border-color .2s, transform .2s;
+}
+.drop:hover, .drop.over, .drop:focus-visible { background: rgba(200,169,107,.09); border-color: var(--gold); outline: none; }
+.drop .ico { font-size: 34px; line-height: 1; }
+.drop b { font-size: 16px; }
+.drop small { color: var(--muted); }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+button {
+  font: inherit; cursor: pointer; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text); padding: 12px 18px; font-weight: 600; font-size: 14.5px;
+  transition: transform .15s, border-color .2s, background .2s, opacity .2s;
+}
+button:hover:not(:disabled) { border-color: var(--gold); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary {
+  background: linear-gradient(135deg, #d9bd80, #b99552); color: #191407; border-color: transparent;
+}
+button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: transparent; }
+.grow { flex: 1 1 160px; }
+
+.camera { display: none; margin-top: 16px; }
+.camera.on { display: block; }
+.camera .frame { position: relative; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+.camera video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+.camera .guide {
+  position: absolute; inset: 14% 28%; border: 2px dashed rgba(230,211,163,.6); border-radius: 50%; pointer-events: none;
+}
+
+.preview { display: none; margin-top: 16px; align-items: center; gap: 16px; }
+.preview.on { display: flex; }
+.preview img { width: 120px; height: 120px; object-fit: cover; border-radius: 16px; border: 1px solid var(--line); flex: none; }
+.preview .meta { flex: 1; min-width: 0; }
+.preview .meta p { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+.preview .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.status { min-height: 22px; margin-top: 14px; font-size: 14px; color: var(--muted); word-break: break-all; }
+.status.err { color: var(--danger); }
+.status.ok { color: var(--ok); }
+.spinner {
+  display: inline-block; width: 15px; height: 15px; margin-right: 8px; vertical-align: -2px;
+  border: 2px solid rgba(200,169,107,.3); border-top-color: var(--gold); border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.results { display: none; }
+.results.on { display: block; }
+.results h2 { margin: 0 0 4px; font-size: 20px; }
+.results .sub { margin: 0 0 18px; color: var(--muted); font-size: 13.5px; }
+.card {
+  display: grid; grid-template-columns: 96px 1fr; gap: 16px; align-items: center;
+  padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.02);
+}
+.card + .card { margin-top: 12px; }
+.card.r1 { border-color: rgba(200,169,107,.65); background: linear-gradient(135deg, rgba(200,169,107,.1), rgba(255,255,255,.02)); }
+.thumb {
+  position: relative; width: 96px; height: 120px; border-radius: 12px; overflow: hidden; background: #10141a;
+  display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 800; color: var(--gold);
+  border: 1px solid var(--line);
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.badge {
+  position: absolute; left: 6px; top: 6px; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #191407;
+  background: var(--gold);
+}
+.r2 .badge { background: #c3c8d2; }
+.r3 .badge { background: #c9986f; }
+.info { min-width: 0; }
+.name { font-size: 19px; font-weight: 800; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.job { font-size: 13px; color: var(--muted); margin-top: 1px; }
+.gauge { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.bar { flex: 1; height: 8px; border-radius: 999px; background: #232a35; overflow: hidden; }
+.bar i {
+  display: block; height: 100%; width: 0; border-radius: inherit;
+  background: linear-gradient(90deg, #b99552, #ecd9a8); transition: width 1s cubic-bezier(.2,.8,.2,1);
+}
+.pct { font-weight: 800; color: var(--gold-soft); min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tags span { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+.wiki { display: inline-block; margin-top: 8px; font-size: 12px; color: var(--gold); text-decoration: none; }
+.wiki:hover { text-decoration: underline; }
+
+.foot { margin-top: 26px; text-align: center; color: #6f7886; font-size: 12px; line-height: 1.7; }
+
+@media (max-width: 520px) {
+  .wrap { padding-top: 28px; }
+  .panel { padding: 16px; }
+  .card { grid-template-columns: 78px 1fr; gap: 12px; padding: 12px; }
+  .thumb { width: 78px; height: 100px; font-size: 28px; }
+  .name { font-size: 17px; }
+  .preview img { width: 92px; height: 92px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">LOOKALIKE</div>
+    <h1>나와 닮은 <span>연예인</span> 찾기</h1>
+    <p class="lead">사진을 올리거나 바로 촬영해 보세요. 얼굴 인상이 가장 비슷한 한국 연예인 3명을 찾아드립니다.</p>
+  </header>
+
+  <section class="panel" aria-label="사진 입력">
+    <div class="drop" id="drop" role="button" tabindex="0" aria-label="사진 선택 또는 끌어다 놓기">
+      <div class="ico" aria-hidden="true">📷</div>
+      <b>사진을 끌어다 놓거나 클릭해서 선택</b>
+      <small>JPG · PNG · WEBP / 최대 10MB / 정면 사진이 가장 정확합니다</small>
+    </div>
+    <input type="file" id="file" accept="image/jpeg,image/png,image/webp" hidden>
+
+    <div class="actions">
+      <button type="button" id="btnPick" class="grow">사진 선택</button>
+      <button type="button" id="btnCam" class="grow">카메라로 촬영</button>
+    </div>
+
+    <div class="camera" id="camera">
+      <div class="frame">
+        <video id="video" playsinline muted autoplay></video>
+        <div class="guide" aria-hidden="true"></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="btnShot" class="primary grow">촬영하기</button>
+        <button type="button" id="btnCamOff" class="grow">카메라 닫기</button>
+      </div>
+    </div>
+
+    <div class="preview" id="preview">
+      <img id="previewImg" alt="선택한 사진 미리보기">
+      <div class="meta">
+        <p>이 사진으로 분석할까요?</p>
+        <div class="btns">
+          <button type="button" id="btnGo" class="primary">닮은꼴 찾기</button>
+          <button type="button" id="btnReset">다시 선택</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="panel results" id="results" aria-label="분석 결과">
+    <h2>가장 닮은 연예인 TOP 3</h2>
+    <p class="sub">유사도는 AI가 추정한 재미용 참고 점수입니다.</p>
+    <div id="list"></div>
+    <div class="actions">
+      <button type="button" id="btnSave" class="grow">결과 이미지로 저장</button>
+      <button type="button" id="btnAgain" class="grow">다른 사진으로 다시</button>
+    </div>
+  </section>
+
+  <p class="foot">
+    분석을 위해 사진은 Google Gemini API로 전송되며 이 페이지에 저장되지 않습니다.<br>
+    결과는 AI의 시각적 인상 비교에 의한 오락용 정보이며, 실제 인물과의 관련성을 의미하지 않습니다.<br>
+    프로필 사진 출처: 위키백과 / 위키미디어 공용 (각 문서의 라이선스 확인)
+  </p>
+</div>
+
+<script>
+'use strict';
+(function () {
+
+  /* =====================================================================
+   * 한끼노트.html 에서 검증된 활성 API 키 및 설정 적용
+   * ===================================================================== */
+  var CONFIG = Object.freeze({
+    GEMINI_API_KEY: 'AQ.Ab8RN6JuqO1GfHvwlrA-GlB2PKNsnso7tU3dM3bN_y6wFS4idw',
+    MAX_FILE_BYTES: 10 * 1024 * 1024,
+    MAX_SIDE: 1024,
+    JPEG_QUALITY: 0.85,
+    ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/webp']
+  });
+
+  var $ = function (id) { return document.getElementById(id); };
+  var els = {
+    drop: $('drop'), file: $('file'), btnPick: $('btnPick'), btnCam: $('btnCam'),
+    camera: $('camera'), video: $('video'), btnShot: $('btnShot'), btnCamOff: $('btnCamOff'),
+    preview: $('preview'), previewImg: $('previewImg'), btnGo: $('btnGo'), btnReset: $('btnReset'),
+    status: $('status'), results: $('results'), list: $('list'), btnSave: $('btnSave'), btnAgain: $('btnAgain')
+  };
+
+  var state = {
+    imageDataUrl: '',
+    stream: null,
+    busy: false,
+    results: [],
+    thumbs: []
+  };
+
+  /* ---------- 유틸 ---------- */
+  function h(tag, props, children) {
+    var node = document.createElement(tag);
+    if (props) {
+      Object.keys(props).forEach(function (k) {
+        if (k === 'text') node.textContent = props[k];
+        else if (k === 'class') node.className = props[k];
+        else node.setAttribute(k, props[k]);
+      });
+    }
+    (children || []).forEach(function (c) { if (c) node.appendChild(c); });
+    return node;
+  }
+
+  function setStatus(msg, kind, withSpinner) {
+    els.status.className = 'status' + (kind ? ' ' + kind : '');
+    els.status.textContent = '';
+    if (withSpinner) els.status.appendChild(h('span', { 'class': 'spinner', 'aria-hidden': 'true' }));
+    els.status.appendChild(document.createTextNode(msg || ''));
+  }
+
+  function setBusy(b) {
+    state.busy = b;
+    els.btnGo.disabled = b;
+    els.btnShot.disabled = b;
+    els.btnPick.disabled = b;
+    els.btnCam.disabled = b;
+    els.btnSave.disabled = b;
+  }
+
+  /* ---------- 이미지 처리 ---------- */
+  function drawScaled(source, w, h2, mirror) {
+    var maxDim = CONFIG.MAX_SIDE;
+    var cw = w, ch = h2;
+    if (cw > maxDim || ch > maxDim) {
+      if (cw > ch) {
+        ch = Math.round((ch * maxDim) / cw);
+        cw = maxDim;
+      } else {
+        cw = Math.round((cw * maxDim) / ch);
+        ch = maxDim;
+      }
+    }
+    var canvas = document.createElement('canvas');
+    canvas.width = cw; canvas.height = ch;
+    var ctx = canvas.getContext('2d');
+    if (mirror) { ctx.translate(cw, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(source, 0, 0, cw, ch);
+    var url = canvas.toDataURL('image/jpeg', CONFIG.JPEG_QUALITY);
+    canvas.width = 0; canvas.height = 0;
+    return url;
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setStatus('이미지 파일(JPG, PNG, WEBP 등)을 선택해 주세요.', 'err'); return;
+    }
+    setStatus('사진을 불러오는 중...', '', true);
+    var reader = new FileReader();
+    reader.onload = function (evt) {
+      var img = new Image();
+      img.onload = function () {
+        var url = drawScaled(img, img.width, img.height, false);
+        showPreview(url);
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function showPreview(dataUrl) {
+    state.imageDataUrl = dataUrl;
+    els.previewImg.src = dataUrl;
+    els.preview.classList.add('on');
+    els.results.classList.remove('on');
+    els.list.textContent = '';
+    state.results = []; state.thumbs = [];
+    setStatus('사진이 준비되었습니다. "닮은꼴 찾기"를 눌러 주세요.', 'ok');
+  }
+
+  function resetAll() {
+    stopCamera();
+    state.imageDataUrl = '';
+    state.results = []; state.thumbs = [];
+    els.previewImg.removeAttribute('src');
+    els.preview.classList.remove('on');
+    els.results.classList.remove('on');
+    els.list.textContent = '';
+    els.file.value = '';
+    setBusy(false);
+    setStatus('');
+  }
+
+  /* ---------- 카메라 ---------- */
+  function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('카메라를 사용할 수 없는 환경입니다.', 'err'); return;
+    }
+    stopCamera();
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false
+    }).then(function (stream) {
+      state.stream = stream;
+      els.video.srcObject = stream;
+      els.camera.classList.add('on');
+      setStatus('얼굴이 가이드 안에 오도록 맞춘 뒤 촬영해 주세요.');
+    }).catch(function () {
+      setStatus('카메라 권한을 확인해 주세요.', 'err');
+    });
+  }
+
+  function stopCamera() {
+    if (state.stream) {
+      state.stream.getTracks().forEach(function (t) { t.stop(); });
+      state.stream = null;
+    }
+    els.video.srcObject = null;
+    els.camera.classList.remove('on');
+  }
+
+  function capture() {
+    var v = els.video;
+    if (!v.videoWidth) { setStatus('카메라 준비 중입니다.', 'err'); return; }
+    var url = drawScaled(v, v.videoWidth, v.videoHeight, true);
+    stopCamera();
+    showPreview(url);
+  }
+
+  /* ---------- 한끼노트 기반 Auto-Discovery & Gemini 통신 엔진 ---------- */
+  var PROMPT = "첨부된 사진 속 얼굴의 전반적인 인상과 가장 닮은 한국 실존 연예인(배우, 가수, 아이돌, 방송인 등) 3명을 추천하십시오. 조언이나 부가 설명 텍스트 없이 지정된 JSON 스키마 형식으로만 응답하십시오.";
+
+  async function requestGeminiAutoDiscovery(base64Data, mimeType, activeApiKey) {
+    var modelQueue = [];
+
+    // 1. 실시간 가용 모델 동적 탐색 (한끼노트 핵심 로직)
+    try {
+      var listRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(activeApiKey), {
+        headers: { 'x-goog-api-key': activeApiKey }
+      });
+
+      if (listRes.ok) {
+        var listJson = await listRes.json();
+        if (listJson.models && listJson.models.length > 0) {
+          var valid = listJson.models.filter(function (m) {
+            return m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent');
+          }).map(function (m) { return m.name.replace(/^models\//, ''); });
+
+          // 응답 속도가 가장 빠른 flash-lite 및 flash 계열 최우선 정렬
+          var lites = valid.filter(function (n) { return n.includes('flash-lite') || n.includes('8b'); });
+          var flashes = valid.filter(function (n) { return n.includes('flash') && !n.includes('flash-lite') && !n.includes('8b'); });
+          var others = valid.filter(function (n) { return !n.includes('flash'); });
+
+          modelQueue = [].concat(lites, flashes, others);
+        }
+      }
+    } catch (e) {
+      console.warn('동적 모델 탐색 실패, 기본 큐를 사용합니다.', e);
+    }
+
+    if (modelQueue.length === 0) {
+      modelQueue = [
+        'gemini-2.0-flash-lite',
+        'gemini-2.5-flash-lite',
+        'gemini-1.5-flash-8b',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash'
+      ];
+    }
+
+    // 한끼노트와 완전히 동일한 payload 구조 (inlineData 일치)
+    var payload = {
+      contents: [{
+        parts: [
+          { text: PROMPT },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
+            }
+          }
+        ]
+      }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            face_detected: { type: "BOOLEAN" },
+            matches: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  name: { type: "STRING" },
+                  profession: { type: "STRING" },
+                  similarity: { type: "INTEGER" },
+                  reasons: { type: "ARRAY", items: { type: "STRING" } },
+                  wiki_title: { type: "STRING" }
+                },
+                required: ["name", "profession", "similarity", "reasons", "wiki_title"]
+              }
+            }
+          },
+          required: ["face_detected", "matches"]
+        }
+      }
+    };
+
+    // 2. 가용 모델 순차 호출 (Silent Failover)
+    var lastError = null;
+    for (var i = 0; i < modelQueue.length; i++) {
+      var model = modelQueue[i];
+      var endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(activeApiKey);
+
+      try {
+        var res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": activeApiKey
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          var resData = await res.json();
+          var rawText = resData.candidates[0].content.parts[0].text;
+          return JSON.parse(rawText);
+        }
+
+        console.warn('[Auto-Failover] ' + model + ' 상태: ' + res.status + ' -> 다음 모델 전환');
+        lastError = new Error('HTTP ' + res.status);
+      } catch (e) {
+        console.warn('[Auto-Failover] ' + model + ' 통신 오류 -> 다음 모델 전환', e);
+        lastError = e;
+      }
+    }
+
+    throw lastError || new Error('모든 모델 응답에 실패했습니다.');
+  }
+
+  function parseResult(obj) {
+    if (!obj || obj.face_detected === false) {
+      throw new Error('noface');
+    }
+    var out = (Array.isArray(obj.matches) ? obj.matches : []).slice(0, 3).map(function (m) {
+      return {
+        name: String(m.name || '').trim(),
+        profession: String(m.profession || '').trim(),
+        similarity: Math.max(40, Math.min(99, Math.round(Number(m.similarity) || 75))),
+        reasons: Array.isArray(m.reasons) ? m.reasons.slice(0, 3) : ['전반적인 얼굴 분위기 일치'],
+        wikiTitle: String(m.wiki_title || m.name || '').trim()
+      };
+    });
+    if (!out.length) throw new Error('noface');
+    return out;
+  }
+
+  /* ---------- 위키백과 프로필 사진 비동기 조회 ---------- */
+  async function fetchProfile(item) {
+    try {
+      var url = 'https://ko.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent((item.wikiTitle || item.name).replace(/ /g, '_'));
+      var res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!res.ok) return { img: '', page: '' };
+      var j = await res.json();
+      var img = (j.thumbnail && j.thumbnail.source) || '';
+      var page = (j.content_urls && j.content_urls.desktop && j.content_urls.desktop.page) || '';
+      return { img: img, page: page };
+    } catch (e) {
+      return { img: '', page: '' };
+    }
+  }
+
+  /* ---------- 결과 카드 렌더링 ---------- */
+  function renderResults(items, profiles) {
+    els.list.textContent = '';
+    state.thumbs = [];
+    var bars = [];
+    items.forEach(function (it, idx) {
+      var prof = profiles[idx] || { img: '', page: '' };
+      var thumb = h('div', { 'class': 'thumb' });
+      var imgEl = null;
+      if (prof.img) {
+        imgEl = new Image();
+        imgEl.crossOrigin = 'anonymous';
+        imgEl.alt = it.name;
+        imgEl.onerror = function () {
+          imgEl.remove();
+          state.thumbs[idx] = null;
+          thumb.insertBefore(document.createTextNode(it.name.charAt(0)), thumb.firstChild);
+        };
+        imgEl.src = prof.img;
+        thumb.appendChild(imgEl);
+      } else {
+        thumb.appendChild(document.createTextNode(it.name.charAt(0)));
+      }
+      state.thumbs[idx] = imgEl;
+      thumb.appendChild(h('span', { 'class': 'badge', text: String(idx + 1) }));
+
+      var bar = h('i');
+      bars.push({ el: bar, v: it.similarity });
+      var info = h('div', { 'class': 'info' }, [
+        h('div', { 'class': 'name', text: it.name }),
+        it.profession ? h('div', { 'class': 'job', text: it.profession }) : null,
+        h('div', { 'class': 'gauge' }, [
+          h('div', { 'class': 'bar' }, [bar]),
+          h('div', { 'class': 'pct', text: it.similarity + '%' })
+        ]),
+        it.reasons.length ? h('div', { 'class': 'tags' }, it.reasons.map(function (r) { return h('span', { text: r }); })) : null,
+        prof.page ? h('a', { 'class': 'wiki', href: prof.page, target: '_blank', rel: 'noopener noreferrer', text: '위키백과에서 보기 ↗' }) : null
+      ]);
+      els.list.appendChild(h('article', { 'class': 'card r' + (idx + 1) }, [thumb, info]));
+    });
+    els.results.classList.add('on');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { bars.forEach(function (b) { b.el.style.width = b.v + '%'; }); });
+    });
+    els.results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function analyze() {
+    if (state.busy) return;
+    if (!state.imageDataUrl) { setStatus('먼저 사진을 선택해 주세요.', 'err'); return; }
+
+    var key = CONFIG.GEMINI_API_KEY.trim();
+    setBusy(true);
+    els.results.classList.remove('on');
+    setStatus('최적의 모델로 얼굴 인상을 분석하고 있습니다...', '', true);
+
+    try {
+      var b64 = state.imageDataUrl.split(',')[1];
+      var resultObj = await requestGeminiAutoDiscovery(b64, 'image/jpeg', key);
+      var items = parseResult(resultObj);
+      
+      setStatus('결과 화면을 구성하는 중...', '', true);
+      // 위키백과 사진은 최대 2.5초만 대기 후 즉시 화면 출력
+      var profiles = await Promise.race([
+        Promise.all(items.map(function (it) { return fetchProfile(it); })),
+        new Promise(function (resolve) { setTimeout(function () { resolve([]); }, 2500); })
+      ]);
+
+      state.results = items;
+      renderResults(items, profiles);
+      setStatus('분석이 완료되었습니다.', 'ok');
+    } catch (e) {
+      if (e.message === 'noface') {
+        setStatus('얼굴을 식별하기 어렵습니다. 정면이 잘 나온 사진으로 다시 시도해 주세요.', 'err');
+      } else {
+        setStatus('분석 실패: ' + (e.message || '네트워크 상태를 확인해 주세요.'), 'err');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /* ---------- 이미지 저장 (Canvas) ---------- */
+  function fitText(ctx, text, maxW) {
+    if (ctx.measureText(text).width <= maxW) return text;
+    var t = text;
+    while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+    return t + '…';
+  }
+
+  function roundRect(ctx, x, y, w, hh, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + hh, r);
+    ctx.arcTo(x + w, y + hh, x, y + hh, r);
+    ctx.arcTo(x, y + hh, x, y, r);
+    ctx.arcTo(x, y + w, y, r);
+    ctx.closePath();
+  }
+
+  function coverDraw(ctx, img, x, y, w, hh) {
+    var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    if (!iw || !ih) return;
+    var s = Math.max(w / iw, hh / ih);
+    var sw = w / s, sh = hh / s;
+    ctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, x, y, w, hh);
+  }
+
+  function buildCanvas(withThumbs, userImg) {
+    var W = 1080, rowH = 250, top = 430, H = top + state.results.length * (rowH + 24) + 120;
+    var c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    var font = '"Pretendard","Noto Sans KR","Apple SD Gothic Neo",sans-serif';
+
+    var g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#171c26'); g.addColorStop(1, '#0d0f13');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#c8a96b'; ctx.font = '600 26px ' + font;
+    ctx.fillText('L O O K A L I K E', W / 2, 78);
+    ctx.fillStyle = '#eceff4'; ctx.font = '800 54px ' + font;
+    ctx.fillText('나와 닮은 연예인 TOP 3', W / 2, 150);
+
+    if (userImg) {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(W / 2, 290, 100, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+      coverDraw(ctx, userImg, W / 2 - 100, 190, 200, 200);
+      ctx.restore();
+      ctx.strokeStyle = '#c8a96b'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(W / 2, 290, 100, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    state.results.forEach(function (it, i) {
+      var y = top + i * (rowH + 24), x = 60, w = W - 120;
+      ctx.fillStyle = i === 0 ? 'rgba(200,169,107,0.12)' : 'rgba(255,255,255,0.04)';
+      roundRect(ctx, x, y, w, rowH, 28); ctx.fill();
+      ctx.strokeStyle = i === 0 ? 'rgba(200,169,107,0.7)' : '#2a313d'; ctx.lineWidth = 2;
+      roundRect(ctx, x, y, w, rowH, 28); ctx.stroke();
+
+      var tx = x + 24, ty = y + 25, tw = 160, th = 200;
+      ctx.save();
+      roundRect(ctx, tx, ty, tw, th, 18); ctx.clip();
+      ctx.fillStyle = '#10141a'; ctx.fillRect(tx, ty, tw, th);
+      var im = withThumbs ? state.thumbs[i] : null;
+      if (im && im.complete && im.naturalWidth) {
+        coverDraw(ctx, im, tx, ty, tw, th);
+      } else {
+        ctx.fillStyle = '#c8a96b'; ctx.font = '800 64px ' + font; ctx.textAlign = 'center';
+        ctx.fillText(it.name.charAt(0), tx + tw / 2, ty + th / 2 + 22);
+      }
+      ctx.restore();
+
+      ctx.fillStyle = i === 0 ? '#c8a96b' : (i === 1 ? '#c3c8d2' : '#c9986f');
+      ctx.beginPath(); ctx.arc(tx + 28, ty + 28, 22, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#191407'; ctx.font = '800 26px ' + font; ctx.textAlign = 'center';
+      ctx.fillText(String(i + 1), tx + 28, ty + 37);
+
+      var ix = tx + tw + 32, iw = x + w - ix - 28;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#eceff4'; ctx.font = '800 42px ' + font;
+      ctx.fillText(fitText(ctx, it.name, iw), ix, y + 78);
+      ctx.fillStyle = '#98a2b3'; ctx.font = '500 25px ' + font;
+      ctx.fillText(fitText(ctx, it.profession || '', iw), ix, y + 116);
+
+      var by = y + 148, bw = iw - 120;
+      ctx.fillStyle = '#232a35'; roundRect(ctx, ix, by, bw, 16, 8); ctx.fill();
+      var bg = ctx.createLinearGradient(ix, 0, ix + bw, 0);
+      bg.addColorStop(0, '#b99552'); bg.addColorStop(1, '#ecd9a8');
+      ctx.fillStyle = bg; roundRect(ctx, ix, by, Math.max(16, bw * it.similarity / 100), 16, 8); ctx.fill();
+      ctx.fillStyle = '#e6d3a3'; ctx.font = '800 34px ' + font; ctx.textAlign = 'right';
+      ctx.fillText(it.similarity + '%', ix + iw, by + 20);
+
+      ctx.textAlign = 'left'; ctx.fillStyle = '#98a2b3'; ctx.font = '500 23px ' + font;
+      ctx.fillText(fitText(ctx, it.reasons.join(' · '), iw), ix, y + 218);
+    });
+
+    ctx.textAlign = 'center'; ctx.fillStyle = '#6f7886'; ctx.font = '500 21px ' + font;
+    ctx.fillText('AI가 추정한 재미용 결과입니다', W / 2, H - 56);
+    return c;
+  }
+
+  function saveImage() {
+    if (!state.results.length || state.busy) return;
+    var userImg = els.previewImg;
+    var canvas;
+    try {
+      canvas = buildCanvas(true, userImg);
+      canvas.toBlob(function (blob) { finishSave(canvas, blob); }, 'image/png');
+    } catch (e) {
+      try {
+        if (canvas) { canvas.width = 0; canvas.height = 0; }
+        canvas = buildCanvas(false, userImg);
+        canvas.toBlob(function (blob) { finishSave(canvas, blob); }, 'image/png');
+      } catch (e2) {
+        setStatus('이미지 저장에 실패했습니다.', 'err');
+      }
+    }
+  }
+
+  function finishSave(canvas, blob) {
+    canvas.width = 0; canvas.height = 0;
+    if (!blob) { setStatus('이미지 저장에 실패했습니다.', 'err'); return; }
+    var u = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = u; a.download = 'lookalike-result.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
+    setStatus('결과 이미지가 저장되었습니다.', 'ok');
+  }
+
+  /* ---------- 이벤트 바인딩 ---------- */
+  function openPicker() { if (!state.busy) els.file.click(); }
+
+  els.btnPick.addEventListener('click', openPicker);
+  els.drop.addEventListener('click', openPicker);
+  els.drop.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); }
+  });
+  els.file.addEventListener('change', function () { handleFile(els.file.files && els.file.files[0]); els.file.value = ''; });
+
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    els.drop.addEventListener(ev, function (e) { e.preventDefault(); els.drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    els.drop.addEventListener(ev, function (e) { e.preventDefault(); els.drop.classList.remove('over'); });
+  });
+  els.drop.addEventListener('drop', function (e) {
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!state.busy) handleFile(f);
+  });
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) { e.preventDefault(); });
+
+  els.btnCam.addEventListener('click', startCamera);
+  els.btnCamOff.addEventListener('click', function () { stopCamera(); setStatus(''); });
+  els.btnShot.addEventListener('click', capture);
+  els.btnGo.addEventListener('click', analyze);
+  els.btnReset.addEventListener('click', resetAll);
+  els.btnAgain.addEventListener('click', function () { resetAll(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  els.btnSave.addEventListener('click', saveImage);
+
+  document.addEventListener('visibilitychange', function () { if (document.hidden) stopCamera(); });
+  window.addEventListener('pagehide', function () { stopCamera(); });
+})();
+</script>
+</body>
+</html>
