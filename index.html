@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: https://upload.wikimedia.org; media-src blob:; connect-src https://generativelanguage.googleapis.com https://ko.wikipedia.org; base-uri 'none'; form-action 'none'">
 <meta name="color-scheme" content="dark">
-<title>닮은꼴 연예인 찾기</title>
+<title>닮은꼴 유명인 찾기 (연예·스포츠·셀럽)</title>
 <style>
 :root {
   --bg: #0d0f13;
@@ -44,7 +44,7 @@ header { text-align: center; margin-bottom: 28px; }
 }
 h1 { margin: 0 0 10px; font-size: clamp(26px, 5.4vw, 38px); font-weight: 800; letter-spacing: -.02em; }
 h1 span { color: var(--gold-soft); }
-.lead { margin: 0 auto; max-width: 480px; color: var(--muted); font-size: 15px; }
+.lead { margin: 0 auto; max-width: 520px; color: var(--muted); font-size: 15px; }
 
 .panel {
   background: linear-gradient(180deg, var(--surface-2), var(--surface));
@@ -54,6 +54,29 @@ h1 span { color: var(--gold-soft); }
   box-shadow: 0 18px 50px rgba(0,0,0,.35);
 }
 .panel + .panel { margin-top: 18px; }
+
+/* 카테고리 탭 UI */
+.category-container {
+  margin-bottom: 18px;
+}
+.category-label {
+  display: block; font-size: 13px; font-weight: 700; color: var(--gold); margin-bottom: 8px;
+}
+.tabs {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  background: rgba(0,0,0,.25); padding: 5px; border-radius: 14px; border: 1px solid var(--line);
+}
+.tab-btn {
+  background: transparent; border: 1px solid transparent; color: var(--muted);
+  border-radius: 10px; padding: 10px 4px; font-size: 13.5px; font-weight: 600;
+  transition: all .2s; cursor: pointer; text-align: center; white-space: nowrap;
+}
+.tab-btn:hover:not(:disabled) { color: var(--text); background: rgba(255,255,255,.04); }
+.tab-btn.active {
+  background: linear-gradient(135deg, rgba(200,169,107,.25), rgba(200,169,107,.12));
+  color: var(--gold-soft); border-color: rgba(200,169,107,.5); font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
 
 .drop {
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
@@ -90,12 +113,24 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
   position: absolute; inset: 14% 28%; border: 2px dashed rgba(230,211,163,.6); border-radius: 50%; pointer-events: none;
 }
 
+/* [디자인 A안] 미리보기 및 버튼 1:1 대칭 정렬 */
 .preview { display: none; margin-top: 16px; align-items: center; gap: 16px; }
 .preview.on { display: flex; }
-.preview img { width: 120px; height: 120px; object-fit: cover; border-radius: 16px; border: 1px solid var(--line); flex: none; }
+.preview img { width: 110px; height: 110px; object-fit: cover; border-radius: 16px; border: 1px solid var(--line); flex: none; }
 .preview .meta { flex: 1; min-width: 0; }
-.preview .meta p { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
-.preview .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.preview .meta p { margin: 0 0 10px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.preview .btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+.preview .btns button {
+  width: 100%;
+  padding: 12px 6px;
+  text-align: center;
+  font-size: 14px;
+}
 
 .status { min-height: 22px; margin-top: 14px; font-size: 14px; color: var(--muted); word-break: break-all; }
 .status.err { color: var(--danger); }
@@ -107,7 +142,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* 얼굴 미인식 안내 화면 */
 .noface-card {
   display: none; padding: 28px 20px; text-align: center; border-radius: 16px;
   background: rgba(229,120,109,0.06); border: 1px dashed rgba(229,120,109,0.4); margin-top: 16px;
@@ -145,7 +179,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
 .r3 .badge { background: #c9986f; }
 .info { min-width: 0; }
 .name { font-size: 19px; font-weight: 800; letter-spacing: -.01em; overflow-wrap: anywhere; }
-.job { font-size: 13px; color: var(--muted); margin-top: 1px; }
+.job { font-size: 13px; color: var(--gold-soft); margin-top: 1px; font-weight: 500; }
 .gauge { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .bar { flex: 1; height: 8px; border-radius: 999px; background: #232a35; overflow: hidden; }
 .bar i {
@@ -163,10 +197,14 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
 @media (max-width: 520px) {
   .wrap { padding-top: 28px; }
   .panel { padding: 16px; }
+  .tabs { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .preview { gap: 12px; }
+  .preview img { width: 88px; height: 88px; border-radius: 12px; }
+  .preview .btns { gap: 6px; }
+  .preview .btns button { font-size: 13px; padding: 11px 4px; }
   .card { grid-template-columns: 78px 1fr; gap: 12px; padding: 12px; }
   .thumb { width: 78px; height: 100px; font-size: 28px; }
   .name { font-size: 17px; }
-  .preview img { width: 92px; height: 92px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation-duration: .01ms !important; }
@@ -177,11 +215,22 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
 <div class="wrap">
   <header>
     <div class="eyebrow">LOOKALIKE</div>
-    <h1>나와 닮은 <span>연예인</span> 찾기</h1>
-    <p class="lead">사진을 올리거나 바로 촬영해 보세요. 얼굴 인상이 가장 비슷한 한국 연예인 3명을 찾아드립니다.</p>
+    <h1>나와 닮은 <span>유명인</span> 찾기</h1>
+    <p class="lead">사진을 올리거나 촬영해 보세요. 얼굴 인상이 가장 닮은 연예인, 스포츠 스타, 셀럽·명사 등 대한민국 유명인을 찾아드립니다.</p>
   </header>
 
   <section class="panel" aria-label="사진 입력">
+    <!-- 순서: 전체 유명인 -> 연예인 -> 스포츠 스타 -> 셀럽·명사 -->
+    <div class="category-container">
+      <span class="category-label">탐색 대상 분야</span>
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab-btn active" data-category="all" role="tab" aria-selected="true">✨ 전체 유명인</button>
+        <button type="button" class="tab-btn" data-category="celeb" role="tab" aria-selected="false">🎬 연예인</button>
+        <button type="button" class="tab-btn" data-category="sports" role="tab" aria-selected="false">⚽ 스포츠 스타</button>
+        <button type="button" class="tab-btn" data-category="master" role="tab" aria-selected="false">♟️ 셀럽·명사</button>
+      </div>
+    </div>
+
     <div class="drop" id="drop" role="button" tabindex="0" aria-label="사진 선택 또는 끌어다 놓기">
       <div class="ico" aria-hidden="true">📷</div>
       <b>사진을 끌어다 놓거나 클릭해서 선택</b>
@@ -205,6 +254,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
       </div>
     </div>
 
+    <!-- 미리보기 영역 (A안 1:1 대칭 배치) -->
     <div class="preview" id="preview">
       <img id="previewImg" alt="선택한 사진 미리보기">
       <div class="meta">
@@ -216,7 +266,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
       </div>
     </div>
 
-    <!-- 얼굴 인식 실패 전용 안내 뷰 -->
+    <!-- 얼굴 인식 실패 안내 화면 -->
     <div class="noface-card" id="noFaceCard">
       <div class="noface-icon">⚠️</div>
       <div class="noface-title">얼굴을 정확히 인식하지 못했습니다</div>
@@ -231,7 +281,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
   </section>
 
   <section class="panel results" id="results" aria-label="분석 결과">
-    <h2>가장 닮은 연예인 TOP 3</h2>
+    <h2 id="resultTitle">가장 닮은 전체 유명인 TOP 3</h2>
     <p class="sub">유사도는 AI가 추정한 재미용 참고 점수입니다.</p>
     <div id="list"></div>
     <div class="actions">
@@ -265,7 +315,9 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     camera: $('camera'), video: $('video'), btnShot: $('btnShot'), btnCamOff: $('btnCamOff'),
     preview: $('preview'), previewImg: $('previewImg'), btnGo: $('btnGo'), btnReset: $('btnReset'),
     noFaceCard: $('noFaceCard'), btnNoFaceRetry: $('btnNoFaceRetry'),
-    status: $('status'), results: $('results'), list: $('list'), btnSave: $('btnSave'), btnAgain: $('btnAgain')
+    status: $('status'), results: $('results'), resultTitle: $('resultTitle'),
+    list: $('list'), btnSave: $('btnSave'), btnAgain: $('btnAgain'),
+    tabBtns: document.querySelectorAll('.tab-btn')
   };
 
   var state = {
@@ -273,7 +325,15 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     stream: null,
     busy: false,
     results: [],
-    thumbs: []
+    thumbs: [],
+    currentCategory: 'all'
+  };
+
+  var CATEGORY_NAMES = {
+    'all': '전체 유명인',
+    'celeb': '연예인',
+    'sports': '스포츠 스타',
+    'master': '셀럽·명사'
   };
 
   /* ---------- 유틸 ---------- */
@@ -304,26 +364,45 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     els.btnPick.disabled = b;
     els.btnCam.disabled = b;
     els.btnSave.disabled = b;
+    els.tabBtns.forEach(function (btn) { btn.disabled = b; });
   }
+
+  /* ---------- 탭 이벤트 ---------- */
+  els.tabBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (state.busy) return;
+      els.tabBtns.forEach(function (b) {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+      state.currentCategory = btn.getAttribute('data-category');
+
+      if (state.imageDataUrl && els.results.classList.contains('on')) {
+        setStatus('분야가 [' + CATEGORY_NAMES[state.currentCategory] + ']으로 변경되었습니다. "닮은꼴 찾기"를 다시 누르면 새 기준으로 찾습니다.', 'ok');
+      }
+    });
+  });
 
   /* ---------- 이미지 처리 ---------- */
   function drawScaled(source, w, h2, mirror) {
     var maxDim = CONFIG.MAX_SIDE;
-    var cw = w, ch = h2;
-    if (cw > maxDim || ch > maxDim) {
-      if (cw > ch) {
-        ch = Math.round((ch * maxDim) / cw);
+    var cw = w, h2_val = h2;
+    if (cw > maxDim || h2_val > maxDim) {
+      if (cw > h2_val) {
+        h2_val = Math.round((h2_val * maxDim) / cw);
         cw = maxDim;
       } else {
-        cw = Math.round((cw * maxDim) / ch);
-        ch = maxDim;
+        cw = Math.round((cw * maxDim) / h2_val);
+        h2_val = maxDim;
       }
     }
     var canvas = document.createElement('canvas');
-    canvas.width = cw; canvas.height = ch;
+    canvas.width = cw; canvas.height = h2_val;
     var ctx = canvas.getContext('2d');
     if (mirror) { ctx.translate(cw, 0); ctx.scale(-1, 1); }
-    ctx.drawImage(source, 0, 0, cw, ch);
+    ctx.drawImage(source, 0, 0, cw, h2_val);
     var url = canvas.toDataURL('image/jpeg', CONFIG.JPEG_QUALITY);
     canvas.width = 0; canvas.height = 0;
     return url;
@@ -407,19 +486,35 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     showPreview(url);
   }
 
-  /* ---------- 한글/실존 연예인 강제 프롬프트 ---------- */
-  var PROMPT = [
-    '당신은 한국 연예인 닮은꼴 분석 AI입니다.',
-    '사진에 사람 얼굴이 명확하게 보이지 않거나, 너무 멀리 있거나, 얼굴보다 다른 사물(음식, 배경 등)이 주된 피사체인 경우 반드시 face_detected를 false로 설정하고 matches를 빈 배열로 하세요.',
-    '사람 얼굴이 명확한 경우에만 face_detected를 true로 하고, 얼굴 인상이 닮은 한국의 유명 실존 연예인(배우, 가수, 방송인 등) 3명을 추천하세요.',
-    '중요 규칙:',
-    '1. 모든 이름(name), 직업(profession), 닮은이유(reasons)는 100% 한글(한국어)로만 작성해야 합니다.',
-    '2. 러시아어, 영어, 한자 등 외국어나 가상 캐릭터는 절대 사용하지 마세요.',
-    '3. 반드시 현재 대한민국 대중에게 널리 알려진 실존 한국인 연예인이어야 합니다.',
-    '4. 부가 텍스트 없이 지정된 JSON 스키마 형식 하나로만 출력하세요.'
-  ].join('\n');
+  /* ---------- 카테고리별 동적 프롬프트 ---------- */
+  function getSystemPrompt(category) {
+    var scopeInstruction = '';
 
-  async function requestGeminiAutoDiscovery(base64Data, mimeType, activeApiKey) {
+    if (category === 'celeb') {
+      scopeInstruction = '검색 대상 범위: 대한민국 대중문화 연예인(배우, 가수, 아이돌, 희극인, 방송인 등) 중에서만 선정하세요.';
+    } else if (category === 'sports') {
+      scopeInstruction = '검색 대상 범위: 대한민국 축구, 야구, 골프, 배구, e스포츠, 올림픽 등 유명 실존 한국 스포츠 스타 및 운동선수 중에서만 선정하세요.';
+    } else if (category === 'master') {
+      scopeInstruction = '검색 대상 범위: 대한민국 프로 바둑 기사(이창호, 이세돌, 신진서, 조훈현, 최정 등) 및 문화, 방송, 요리, 예술, 학술 등 각 전문 분야의 실존 유명 셀럽 및 명사 중에서 선정하세요.';
+    } else {
+      scopeInstruction = '검색 대상 범위: 대한민국 대중에게 널리 알려진 실존 한국인 유명인 전체(연예인, 스포츠 스타, 프로 바둑 기사, 문화 예술 명사 등)를 모두 후보군으로 두고 가장 얼굴 인상이 닮은 인물을 자유롭게 선정하세요.';
+    }
+
+    return [
+      '당신은 한국 유명인 닮은꼴 분석 AI입니다.',
+      scopeInstruction,
+      '사진에 사람 얼굴이 명확하게 보이지 않거나, 너무 멀리 있거나, 얼굴보다 다른 사물(음식, 배경 등)이 주된 피사체인 경우 반드시 face_detected를 false로 설정하고 matches를 빈 배열로 하세요.',
+      '사람 얼굴이 명확한 경우에만 face_detected를 true로 하고, 얼굴 인상이 가장 닮은 실존 인물 3명을 추천하세요.',
+      '중요 규칙:',
+      '1. 모든 이름(name), 구체적인 직업(profession - 예: 배우, 축구선수, 프로바둑기사(9단)), 닮은이유(reasons)는 100% 한글(한국어)로만 작성해야 합니다.',
+      '2. 러시아어, 영어, 한자 등 외국어나 가상 캐릭터는 절대 사용하지 마세요.',
+      '3. 반드시 현재 대한민국 대중에게 널리 알려진 실존 한국인이어야 합니다.',
+      '4. wiki_title에는 한국어 위키백과(ko.wikipedia.org) 표제어와 정확히 일치할 인물명을 적으세요.',
+      '5. 부가 텍스트 없이 지정된 JSON 스키마 형식 하나로만 출력하세요.'
+    ].join('\n');
+  }
+
+  async function requestGeminiAutoDiscovery(base64Data, mimeType, activeApiKey, category) {
     var modelQueue = [];
 
     try {
@@ -455,10 +550,11 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
       ];
     }
 
+    var dynamicPrompt = getSystemPrompt(category);
     var payload = {
       contents: [{
         parts: [
-          { text: PROMPT },
+          { text: dynamicPrompt },
           {
             inlineData: {
               mimeType: mimeType,
@@ -530,12 +626,11 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
       throw new Error('noface');
     }
 
-    var koreanRegex = /[가-힣]/; // 최소 한글이 포함되어 있는지 확인
+    var koreanRegex = /[가-힣]/;
     var out = [];
 
     obj.matches.forEach(function (m) {
       var name = String(m.name || '').trim();
-      // 러시아어 등 비정상 문자 걸러내기 (한글 미포함 시 탈락)
       if (!name || !koreanRegex.test(name)) return;
 
       var reasons = Array.isArray(m.reasons) ? m.reasons.map(function(r) { return String(r).trim(); }) : [];
@@ -543,7 +638,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
 
       out.push({
         name: name,
-        profession: String(m.profession || '연예인').trim(),
+        profession: String(m.profession || '유명인').trim(),
         similarity: Math.max(40, Math.min(99, Math.round(Number(m.similarity) || 75))),
         reasons: reasons.slice(0, 3),
         wikiTitle: String(m.wiki_title || name).trim()
@@ -557,7 +652,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     return out.slice(0, 3);
   }
 
-  /* ---------- 위키백과 프로필 사진 ---------- */
+  /* ---------- 위키백과 프로필 사진 연동 ---------- */
   async function fetchProfile(item) {
     try {
       var url = 'https://ko.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent((item.wikiTitle || item.name).replace(/ /g, '_'));
@@ -573,14 +668,17 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
   }
 
   /* ---------- 결과 카드 렌더링 ---------- */
-  function renderResults(items, profiles) {
+  function renderResults(items, profiles, categoryName) {
+    els.resultTitle.textContent = '가장 닮은 ' + categoryName + ' TOP 3';
     els.list.textContent = '';
     state.thumbs = [];
     var bars = [];
+
     items.forEach(function (it, idx) {
       var prof = profiles[idx] || { img: '', page: '' };
       var thumb = h('div', { 'class': 'thumb' });
       var imgEl = null;
+
       if (prof.img) {
         imgEl = new Image();
         imgEl.crossOrigin = 'anonymous';
@@ -612,6 +710,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
       ]);
       els.list.appendChild(h('article', { 'class': 'card r' + (idx + 1) }, [thumb, info]));
     });
+
     els.results.classList.add('on');
     requestAnimationFrame(function () {
       requestAnimationFrame(function () { bars.forEach(function (b) { b.el.style.width = b.v + '%'; }); });
@@ -624,16 +723,19 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     if (!state.imageDataUrl) { setStatus('먼저 사진을 선택해 주세요.', 'err'); return; }
 
     var key = CONFIG.GEMINI_API_KEY.trim();
+    var activeCategory = state.currentCategory;
+    var categoryLabel = CATEGORY_NAMES[activeCategory] || '유명인';
+
     setBusy(true);
     els.noFaceCard.classList.remove('on');
     els.results.classList.remove('on');
-    setStatus('최적의 모델로 얼굴 인상을 분석하고 있습니다...', '', true);
+    setStatus('[' + categoryLabel + '] 분야에서 얼굴 인상을 정밀 분석하고 있습니다...', '', true);
 
     try {
       var b64 = state.imageDataUrl.split(',')[1];
-      var resultObj = await requestGeminiAutoDiscovery(b64, 'image/jpeg', key);
+      var resultObj = await requestGeminiAutoDiscovery(b64, 'image/jpeg', key, activeCategory);
       var items = parseResult(resultObj);
-      
+
       setStatus('결과 화면을 구성하는 중...', '', true);
       var profiles = await Promise.race([
         Promise.all(items.map(function (it) { return fetchProfile(it); })),
@@ -641,7 +743,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
       ]);
 
       state.results = items;
-      renderResults(items, profiles);
+      renderResults(items, profiles, categoryLabel);
       setStatus('분석이 완료되었습니다.', 'ok');
     } catch (e) {
       if (e.message === 'noface') {
@@ -688,6 +790,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     c.width = W; c.height = H;
     var ctx = c.getContext('2d');
     var font = '"Pretendard","Noto Sans KR","Apple SD Gothic Neo",sans-serif';
+    var catName = CATEGORY_NAMES[state.currentCategory] || '유명인';
 
     var g = ctx.createLinearGradient(0, 0, W, H);
     g.addColorStop(0, '#171c26'); g.addColorStop(1, '#0d0f13');
@@ -696,8 +799,8 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     ctx.textAlign = 'center';
     ctx.fillStyle = '#c8a96b'; ctx.font = '600 26px ' + font;
     ctx.fillText('L O O K A L I K E', W / 2, 78);
-    ctx.fillStyle = '#eceff4'; ctx.font = '800 54px ' + font;
-    ctx.fillText('나와 닮은 연예인 TOP 3', W / 2, 150);
+    ctx.fillStyle = '#eceff4'; ctx.font = '800 52px ' + font;
+    ctx.fillText('나와 닮은 ' + catName + ' TOP 3', W / 2, 150);
 
     if (userImg) {
       ctx.save();
@@ -737,7 +840,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
       ctx.textAlign = 'left';
       ctx.fillStyle = '#eceff4'; ctx.font = '800 42px ' + font;
       ctx.fillText(fitText(ctx, it.name, iw), ix, y + 78);
-      ctx.fillStyle = '#98a2b3'; ctx.font = '500 25px ' + font;
+      ctx.fillStyle = '#c8a96b'; ctx.font = '600 25px ' + font;
       ctx.fillText(fitText(ctx, it.profession || '', iw), ix, y + 116);
 
       var by = y + 148, bw = iw - 120;
@@ -780,7 +883,7 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     if (!blob) { setStatus('이미지 저장에 실패했습니다.', 'err'); return; }
     var u = URL.createObjectURL(blob);
     var a = document.createElement('a');
-    a.href = u; a.download = 'lookalike-result.png';
+    a.href = u; a.download = 'lookalike-' + state.currentCategory + '-result.png';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
     setStatus('결과 이미지가 저장되었습니다.', 'ok');
