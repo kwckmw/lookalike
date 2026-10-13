@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: https://upload.wikimedia.org; media-src blob:; connect-src https://generativelanguage.googleapis.com https://ko.wikipedia.org; base-uri 'none'; form-action 'none'">
+<!-- CSP: 구글 직접 통신 대신 자기 서버('self') 및 위키백과만 허용 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: https://upload.wikimedia.org; media-src blob:; connect-src 'self' https://ko.wikipedia.org; base-uri 'none'; form-action 'none'">
 <meta name="color-scheme" content="dark">
 <title>닮은꼴 유명인 찾기 (연예·스포츠·셀럽)</title>
 <style>
@@ -55,7 +56,6 @@ h1 span { color: var(--gold-soft); }
 }
 .panel + .panel { margin-top: 18px; }
 
-/* 카테고리 탭 UI */
 .category-container {
   margin-bottom: 18px;
 }
@@ -113,7 +113,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
   position: absolute; inset: 14% 28%; border: 2px dashed rgba(230,211,163,.6); border-radius: 50%; pointer-events: none;
 }
 
-/* [디자인 A안] 미리보기 및 버튼 1:1 대칭 정렬 */
 .preview { display: none; margin-top: 16px; align-items: center; gap: 16px; }
 .preview.on { display: flex; }
 .preview img { width: 110px; height: 110px; object-fit: cover; border-radius: 16px; border: 1px solid var(--line); flex: none; }
@@ -220,7 +219,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
   </header>
 
   <section class="panel" aria-label="사진 입력">
-    <!-- 순서: 전체 유명인 -> 연예인 -> 스포츠 스타 -> 셀럽·명사 -->
     <div class="category-container">
       <span class="category-label">탐색 대상 분야</span>
       <div class="tabs" role="tablist">
@@ -254,7 +252,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
       </div>
     </div>
 
-    <!-- 미리보기 영역 (A안 1:1 대칭 배치) -->
     <div class="preview" id="preview">
       <img id="previewImg" alt="선택한 사진 미리보기">
       <div class="meta">
@@ -266,7 +263,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
       </div>
     </div>
 
-    <!-- 얼굴 인식 실패 안내 화면 -->
     <div class="noface-card" id="noFaceCard">
       <div class="noface-icon">⚠️</div>
       <div class="noface-title">얼굴을 정확히 인식하지 못했습니다</div>
@@ -291,9 +287,9 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
   </section>
 
   <p class="foot">
-    분석을 위해 사진은 Google Gemini API로 전송되며 이 페이지에 저장되지 않습니다.<br>
+    분석을 위해 사진은 Google Gemini API로 전송되며 서버에 저장되지 않습니다.<br>
     결과는 AI의 시각적 인상 비교에 의한 오락용 정보이며, 실제 인물과의 관련성을 의미하지 않습니다.<br>
-    프로필 사진 출처: 위키백과 / 위키미디어 공용 (각 문서의 라이선스 확인)
+    프로필 사진 출처: 위키백과 / 위키미디어 공용
   </p>
 </div>
 
@@ -301,8 +297,8 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
 'use strict';
 (function () {
 
+  // API 키 제거 완료
   var CONFIG = Object.freeze({
-    GEMINI_API_KEY: 'AQ.Ab8RN6Lx0F2IMLOxjHMwIlkzkAWI1p3IFNzkL-1367BybY6CEw',
     MAX_FILE_BYTES: 10 * 1024 * 1024,
     MAX_SIDE: 1024,
     JPEG_QUALITY: 0.85,
@@ -336,7 +332,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     'master': '셀럽·명사'
   };
 
-  /* ---------- 유틸 ---------- */
   function h(tag, props, children) {
     var node = document.createElement(tag);
     if (props) {
@@ -367,7 +362,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     els.tabBtns.forEach(function (btn) { btn.disabled = b; });
   }
 
-  /* ---------- 탭 이벤트 ---------- */
   els.tabBtns.forEach(function (btn) {
     btn.addEventListener('click', function () {
       if (state.busy) return;
@@ -385,7 +379,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     });
   });
 
-  /* ---------- 이미지 처리 ---------- */
   function drawScaled(source, w, h2, mirror) {
     var maxDim = CONFIG.MAX_SIDE;
     var cw = w, h2_val = h2;
@@ -451,7 +444,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     setStatus('');
   }
 
-  /* ---------- 카메라 ---------- */
   function startCamera() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setStatus('카메라를 사용할 수 없는 환경입니다.', 'err'); return;
@@ -486,10 +478,8 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     showPreview(url);
   }
 
-  /* ---------- 카테고리별 동적 프롬프트 ---------- */
   function getSystemPrompt(category) {
     var scopeInstruction = '';
-
     if (category === 'celeb') {
       scopeInstruction = '검색 대상 범위: 대한민국 대중문화 연예인(배우, 가수, 아이돌, 희극인, 방송인 등) 중에서만 선정하세요.';
     } else if (category === 'sports') {
@@ -514,111 +504,25 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     ].join('\n');
   }
 
-  async function requestGeminiAutoDiscovery(base64Data, mimeType, activeApiKey, category) {
-    var modelQueue = [];
-
-    try {
-      var listRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(activeApiKey), {
-        headers: { 'x-goog-api-key': activeApiKey }
-      });
-
-      if (listRes.ok) {
-        var listJson = await listRes.json();
-        if (listJson.models && listJson.models.length > 0) {
-          var valid = listJson.models.filter(function (m) {
-            return m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent');
-          }).map(function (m) { return m.name.replace(/^models\//, ''); });
-
-          var lites = valid.filter(function (n) { return n.includes('flash-lite') || n.includes('8b'); });
-          var flashes = valid.filter(function (n) { return n.includes('flash') && !n.includes('flash-lite') && !n.includes('8b'); });
-          var others = valid.filter(function (n) { return !n.includes('flash'); });
-
-          modelQueue = [].concat(lites, flashes, others);
-        }
-      }
-    } catch (e) {
-      console.warn('동적 모델 탐색 실패, 기본 큐를 사용합니다.', e);
-    }
-
-    if (modelQueue.length === 0) {
-      modelQueue = [
-        'gemini-2.0-flash-lite',
-        'gemini-2.5-flash-lite',
-        'gemini-1.5-flash-8b',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash'
-      ];
-    }
-
+  /* Vercel 서버리스 함수(/api/analyze) 호출 */
+  async function requestGeminiViaServer(base64Data, mimeType, category) {
     var dynamicPrompt = getSystemPrompt(category);
-    var payload = {
-      contents: [{
-        parts: [
-          { text: dynamicPrompt },
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Data
-            }
-          }
-        ]
-      }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            face_detected: { type: "BOOLEAN" },
-            matches: {
-              type: "ARRAY",
-              items: {
-                type: "OBJECT",
-                properties: {
-                  name: { type: "STRING" },
-                  profession: { type: "STRING" },
-                  similarity: { type: "INTEGER" },
-                  reasons: { type: "ARRAY", items: { type: "STRING" } },
-                  wiki_title: { type: "STRING" }
-                },
-                required: ["name", "profession", "similarity", "reasons", "wiki_title"]
-              }
-            }
-          },
-          required: ["face_detected", "matches"]
-        }
-      }
-    };
+    var res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        base64Data: base64Data,
+        mimeType: mimeType,
+        dynamicPrompt: dynamicPrompt
+      })
+    });
 
-    var lastError = null;
-    for (var i = 0; i < modelQueue.length; i++) {
-      var model = modelQueue[i];
-      var endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(activeApiKey);
-
-      try {
-        var res = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": activeApiKey
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-          var resData = await res.json();
-          var rawText = resData.candidates[0].content.parts[0].text;
-          return JSON.parse(rawText);
-        }
-
-        console.warn('[Auto-Failover] ' + model + ' 상태: ' + res.status + ' -> 다음 모델 전환');
-        lastError = new Error('HTTP ' + res.status);
-      } catch (e) {
-        console.warn('[Auto-Failover] ' + model + ' 통신 오류 -> 다음 모델 전환', e);
-        lastError = e;
-      }
+    if (!res.ok) {
+      var errData = await res.json().catch(function () { return {}; });
+      throw new Error(errData.error || ('서버 오류 (' + res.status + ')'));
     }
 
-    throw lastError || new Error('모든 모델 응답에 실패했습니다.');
+    return await res.json();
   }
 
   function parseResult(obj) {
@@ -652,7 +556,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     return out.slice(0, 3);
   }
 
-  /* ---------- 위키백과 프로필 사진 연동 ---------- */
   async function fetchProfile(item) {
     try {
       var url = 'https://ko.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent((item.wikiTitle || item.name).replace(/ /g, '_'));
@@ -667,7 +570,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     }
   }
 
-  /* ---------- 결과 카드 렌더링 ---------- */
   function renderResults(items, profiles, categoryName) {
     els.resultTitle.textContent = '가장 닮은 ' + categoryName + ' TOP 3';
     els.list.textContent = '';
@@ -722,7 +624,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     if (state.busy) return;
     if (!state.imageDataUrl) { setStatus('먼저 사진을 선택해 주세요.', 'err'); return; }
 
-    var key = CONFIG.GEMINI_API_KEY.trim();
     var activeCategory = state.currentCategory;
     var categoryLabel = CATEGORY_NAMES[activeCategory] || '유명인';
 
@@ -733,7 +634,8 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
 
     try {
       var b64 = state.imageDataUrl.split(',')[1];
-      var resultObj = await requestGeminiAutoDiscovery(b64, 'image/jpeg', key, activeCategory);
+      // 서버리스 프록시 호출
+      var resultObj = await requestGeminiViaServer(b64, 'image/jpeg', activeCategory);
       var items = parseResult(resultObj);
 
       setStatus('결과 화면을 구성하는 중...', '', true);
@@ -758,7 +660,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     }
   }
 
-  /* ---------- 이미지 저장 (Canvas) ---------- */
   function fitText(ctx, text, maxW) {
     if (ctx.measureText(text).width <= maxW) return text;
     var t = text;
@@ -889,7 +790,6 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     setStatus('결과 이미지가 저장되었습니다.', 'ok');
   }
 
-  /* ---------- 이벤트 바인딩 ---------- */
   function openPicker() { if (!state.busy) els.file.click(); }
 
   els.btnPick.addEventListener('click', openPicker);
