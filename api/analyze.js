@@ -28,7 +28,6 @@ function getSystemPrompt(category) {
 }
 
 export default async function handler(req, res) {
-  // 안전한 JSON 응답 헬퍼
   function sendJson(status, obj) {
     res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
     return res.end(JSON.stringify(obj));
@@ -40,17 +39,15 @@ export default async function handler(req, res) {
       return sendJson(405, { error: 'POST 요청만 허용됩니다.' });
     }
 
-    // 환경변수 확인 (GEMINI_KEY 또는 GEMINI_API_KEY)
     var rawKey = process.env.GEMINI_KEY || process.env.GEMINI_API_KEY || '';
     var apiKey = String(rawKey).replace(/['"\s]/g, '').trim();
 
     if (!apiKey) {
       return sendJson(500, {
-        error: 'Vercel 환경변수(GEMINI_KEY)가 비어 있습니다. Vercel Settings에서 저장 후 Redeploy 해주세요.'
+        error: 'Vercel 환경변수(GEMINI_KEY)가 비어 있습니다.'
       });
     }
 
-    // 요청 데이터 안전 파싱
     var body = req.body;
     if (typeof body === 'string') {
       try {
@@ -67,7 +64,7 @@ export default async function handler(req, res) {
     var category = body.category || 'all';
 
     if (!base64Data) {
-      return sendJson(400, { error: '이미지 데이터(base64Data)가 전달되지 않았습니다.' });
+      return sendJson(400, { error: '이미지 데이터가 전달되지 않았습니다.' });
     }
 
     var cleanBase64 = base64Data.indexOf(',') !== -1 ? base64Data.split(',')[1] : base64Data;
@@ -75,13 +72,48 @@ export default async function handler(req, res) {
       ? mimeType
       : 'image/jpeg';
 
-    var modelQueue = [
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite',
-      'gemini-2.5-flash',
-      'gemini-1.5-flash'
-    ];
+    // 1. 기존 HTML 코드와 동일한 실시간 모델 자동 탐색 (Auto-Discovery)
+    var modelQueue = [];
+    try {
+      var listRes = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(apiKey),
+        { headers: { 'x-goog-api-key': apiKey } }
+      );
 
+      if (listRes.ok) {
+        var listJson = await listRes.json();
+        if (listJson.models && listJson.models.length > 0) {
+          var valid = listJson.models.filter(function (m) {
+            return m.supportedGenerationMethods && m.supportedGenerationMethods.indexOf('generateContent') !== -1;
+          }).map(function (m) {
+            return m.name.replace(/^models\//, '');
+          }).filter(function (n) {
+            // 이미지+JSON 응답이 불가능한 특수 모델(tts, imagen, thinking 등) 제외
+            return n.indexOf('tts') === -1 && n.indexOf('imagen') === -1 && n.indexOf('embedding') === -1 && n.indexOf('aqa') === -1;
+          });
+
+          var lites = valid.filter(function (n) { return n.indexOf('flash-lite') !== -1; });
+          var flashes = valid.filter(function (n) { return n.indexOf('flash') !== -1 && n.indexOf('flash-lite') === -1; });
+          var others = valid.filter(function (n) { return n.indexOf('flash') === -1; });
+
+          modelQueue = [].concat(lites, flashes, others);
+        }
+      }
+    } catch (e) {
+      // 탐색 실패 시 아래 기본 큐 사용
+    }
+
+    // 만약 목록 조회가 안 되었을 때 사용할 최신 모델 기본 큐 (구형 1.5 제거)
+    if (modelQueue.length === 0) {
+      modelQueue = [
+        'gemini-2.5-flash-lite',
+        'gemini-2.5-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-2.0-flash'
+      ];
+    }
+
+    // 2. 프롬프트 및 페이로드 구성
     var dynamicPrompt = getSystemPrompt(category);
     var payload = {
       contents: [{
@@ -121,7 +153,8 @@ export default async function handler(req, res) {
       }
     };
 
-    var lastErrorMsg = '';
+    // 3. 탐색된 최신 모델 순차 호출
+    var errors = [];
     for (var i = 0; i < modelQueue.length; i++) {
       var model = modelQueue[i];
       var endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(apiKey);
@@ -156,21 +189,22 @@ export default async function handler(req, res) {
           var errObj = {};
           try { errObj = JSON.parse(resText); } catch (e) {}
           var detail = (errObj.error && errObj.error.message) ? errObj.error.message : ('HTTP ' + geminiRes.status);
-          lastErrorMsg = '[' + model + '] ' + detail;
+          errors.push('[' + model + '] ' + detail);
 
-          if (detail.indexOf('API key not valid') !== -1 || detail.indexOf('API_KEY_INVALID') !== -1) {
+          // API 키 오류나 권한 오류면 즉시 반환
+          if (detail.indexOf('API key not valid') !== -1 || detail.indexOf('API_KEY_INVALID') !== -1 || geminiRes.status === 403) {
             return sendJson(400, {
-              error: '등록된 GEMINI_KEY가 올바르지 않습니다. 키 값을 다시 확인해 주세요. (' + detail + ')'
+              error: 'API 키 오류 또는 권한 제한: ' + detail
             });
           }
         }
       } catch (innerErr) {
-        lastErrorMsg = '[' + model + '] ' + (innerErr.message || String(innerErr));
+        errors.push('[' + model + '] ' + (innerErr.message || String(innerErr)));
       }
     }
 
     return sendJson(502, {
-      error: 'Gemini 호출 실패: ' + (lastErrorMsg || '응답 없음')
+      error: 'Gemini 호출 실패: ' + (errors[0] || '응답 없음')
     });
   } catch (fatalErr) {
     return sendJson(500, {
