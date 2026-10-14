@@ -28,6 +28,16 @@ function getSystemPrompt(category) {
 }
 
 export default async function handler(req, res) {
+  // 범용 CORS 허용 헤더 설정 (GitHub Pages 및 외부 도메인 연동 허용)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // 브라우저의 CORS 사전 확인(Preflight OPTIONS) 요청 즉시 승인
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   function sendJson(status, obj) {
     res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
     return res.end(JSON.stringify(obj));
@@ -35,7 +45,7 @@ export default async function handler(req, res) {
 
   try {
     if (req.method !== 'POST') {
-      res.setHeader('Allow', 'POST');
+      res.setHeader('Allow', 'POST, OPTIONS');
       return sendJson(405, { error: 'POST 요청만 허용됩니다.' });
     }
 
@@ -72,7 +82,7 @@ export default async function handler(req, res) {
       ? mimeType
       : 'image/jpeg';
 
-    // 1. 기존 HTML 코드와 동일한 실시간 모델 자동 탐색 (Auto-Discovery)
+    // 1. 실시간 모델 자동 탐색 (Auto-Discovery)
     var modelQueue = [];
     try {
       var listRes = await fetch(
@@ -88,7 +98,6 @@ export default async function handler(req, res) {
           }).map(function (m) {
             return m.name.replace(/^models\//, '');
           }).filter(function (n) {
-            // 이미지+JSON 응답이 불가능한 특수 모델(tts, imagen, thinking 등) 제외
             return n.indexOf('tts') === -1 && n.indexOf('imagen') === -1 && n.indexOf('embedding') === -1 && n.indexOf('aqa') === -1;
           });
 
@@ -100,10 +109,9 @@ export default async function handler(req, res) {
         }
       }
     } catch (e) {
-      // 탐색 실패 시 아래 기본 큐 사용
+      // 탐색 실패 시 기본 큐 사용
     }
 
-    // 만약 목록 조회가 안 되었을 때 사용할 최신 모델 기본 큐 (구형 1.5 제거)
     if (modelQueue.length === 0) {
       modelQueue = [
         'gemini-2.5-flash-lite',
@@ -153,7 +161,7 @@ export default async function handler(req, res) {
       }
     };
 
-    // 3. 탐색된 최신 모델 순차 호출
+    // 3. 모델 순차 호출
     var errors = [];
     for (var i = 0; i < modelQueue.length; i++) {
       var model = modelQueue[i];
@@ -191,7 +199,6 @@ export default async function handler(req, res) {
           var detail = (errObj.error && errObj.error.message) ? errObj.error.message : ('HTTP ' + geminiRes.status);
           errors.push('[' + model + '] ' + detail);
 
-          // API 키 오류나 권한 오류면 즉시 반환
           if (detail.indexOf('API key not valid') !== -1 || detail.indexOf('API_KEY_INVALID') !== -1 || geminiRes.status === 403) {
             return sendJson(400, {
               error: 'API 키 오류 또는 권한 제한: ' + detail
