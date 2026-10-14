@@ -1,7 +1,7 @@
 // 파일 위치: api/analyze.js
 
 function getSystemPrompt(category) {
-  let scopeInstruction = '';
+  var scopeInstruction = '';
 
   if (category === 'celeb') {
     scopeInstruction = '검색 대상 범위: 대한민국 대중문화 연예인(배우, 가수, 아이돌, 희극인, 방송인 등) 중에서만 선정하세요.';
@@ -27,100 +27,63 @@ function getSystemPrompt(category) {
   ].join('\n');
 }
 
-// Vercel 환경에서 요청 본문(Body)을 안전하게 파싱하는 헬퍼 함수
-async function parseRequestBody(req) {
-  if (req.body) {
-    if (typeof req.body === 'string') {
-      return JSON.parse(req.body);
-    }
-    if (Buffer.isBuffer(req.body)) {
-      return JSON.parse(req.body.toString('utf8'));
-    }
-    if (typeof req.body === 'object') {
-      return req.body;
-    }
-  }
-
-  // req.body가 비어있을 경우 스트림에서 직접 읽기
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-  }
-  const raw = Buffer.concat(chunks).toString('utf8');
-  return raw ? JSON.parse(raw) : {};
-}
-
-module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: '허용되지 않는 요청 방식입니다 (POST만 가능).' });
-  }
-
-  // 환경변수에 따옴표나 공백이 실수로 들어간 경우까지 깔끔하게 제거
-  const rawKey = process.env.GEMINI_KEY || process.env.GEMINI_API_KEY || '';
-  const apiKey = rawKey.replace(/['"\s]/g, '').trim();
-
-  if (!apiKey) {
-    return res.status(500).json({
-      error: '서버에 GEMINI_KEY 환경변수가 적용되지 않았습니다. Vercel에서 Redeploy(재배포)를 한 번 실행해 주세요.'
-    });
+export default async function handler(req, res) {
+  // 안전한 JSON 응답 헬퍼
+  function sendJson(status, obj) {
+    res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
+    return res.end(JSON.stringify(obj));
   }
 
   try {
-    const body = await parseRequestBody(req);
-    const { base64Data, mimeType, category } = body || {};
-
-    if (!base64Data || typeof base64Data !== 'string') {
-      return res.status(400).json({ error: '이미지 데이터가 서버에 전달되지 않았습니다.' });
+    if (req.method !== 'POST') {
+      res.setHeader('Allow', 'POST');
+      return sendJson(405, { error: 'POST 요청만 허용됩니다.' });
     }
 
-    // 혹시 data:image/jpeg;base64, 접두사가 포함되어 있다면 순수 base64만 추출
-    const cleanBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+    // 환경변수 확인 (GEMINI_KEY 또는 GEMINI_API_KEY)
+    var rawKey = process.env.GEMINI_KEY || process.env.GEMINI_API_KEY || '';
+    var apiKey = String(rawKey).replace(/['"\s]/g, '').trim();
 
-    const safeMimeType = ['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)
+    if (!apiKey) {
+      return sendJson(500, {
+        error: 'Vercel 환경변수(GEMINI_KEY)가 비어 있습니다. Vercel Settings에서 저장 후 Redeploy 해주세요.'
+      });
+    }
+
+    // 요청 데이터 안전 파싱
+    var body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        return sendJson(400, { error: '요청 JSON 파싱 실패: ' + e.message });
+      }
+    } else if (!body || typeof body !== 'object') {
+      body = {};
+    }
+
+    var base64Data = body.base64Data || '';
+    var mimeType = body.mimeType || 'image/jpeg';
+    var category = body.category || 'all';
+
+    if (!base64Data) {
+      return sendJson(400, { error: '이미지 데이터(base64Data)가 전달되지 않았습니다.' });
+    }
+
+    var cleanBase64 = base64Data.indexOf(',') !== -1 ? base64Data.split(',')[1] : base64Data;
+    var safeMimeType = ['image/jpeg', 'image/png', 'image/webp'].indexOf(mimeType) !== -1
       ? mimeType
       : 'image/jpeg';
 
-    // 1. 사용 가능한 모델 탐색 (안정적인 최신 멀티모달 모델 우선 배치)
-    let modelQueue = [
+    var modelQueue = [
       'gemini-2.0-flash',
       'gemini-2.0-flash-lite',
       'gemini-2.5-flash',
-      'gemini-2.5-flash-lite',
       'gemini-1.5-flash'
     ];
 
-    try {
-      const listRes = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(apiKey),
-        { headers: { 'x-goog-api-key': apiKey } }
-      );
-
-      if (listRes.ok) {
-        const listJson = await listRes.json();
-        if (listJson.models && listJson.models.length > 0) {
-          const valid = listJson.models
-            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
-            .map(m => m.name.replace(/^models\//, ''))
-            // 이미지 입력 및 JSON 스키마를 완벽히 지원하는 flash/pro 모델만 필터링
-            .filter(n => (n.includes('flash') || n.includes('pro')) && !n.includes('tts') && !n.includes('embedding') && !n.includes('imagen'));
-
-          const lites = valid.filter(n => n.includes('flash-lite') || n.includes('8b'));
-          const flashes = valid.filter(n => n.includes('flash') && !n.includes('flash-lite') && !n.includes('8b'));
-
-          const discovered = [].concat(lites, flashes);
-          if (discovered.length > 0) {
-            modelQueue = discovered;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('모델 목록 조회 생략, 기본 큐 사용:', e);
-    }
-
-    // 2. 프롬프트 및 페이로드 구성
-    const dynamicPrompt = getSystemPrompt(category || 'all');
-    const payload = {
+    var dynamicPrompt = getSystemPrompt(category);
+    var payload = {
       contents: [{
         parts: [
           { text: dynamicPrompt },
@@ -158,14 +121,13 @@ module.exports = async function handler(req, res) {
       }
     };
 
-    // 3. 모델 호출 및 상세 에러 수집
-    let lastErrorDetail = '';
-    for (let i = 0; i < modelQueue.length; i++) {
-      const model = modelQueue[i];
-      const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(apiKey);
+    var lastErrorMsg = '';
+    for (var i = 0; i < modelQueue.length; i++) {
+      var model = modelQueue[i];
+      var endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(apiKey);
 
       try {
-        const geminiRes = await fetch(endpoint, {
+        var geminiRes = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -174,37 +136,45 @@ module.exports = async function handler(req, res) {
           body: JSON.stringify(payload)
         });
 
+        var resText = await geminiRes.text();
+
         if (geminiRes.ok) {
-          const resData = await geminiRes.json();
-          const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+          var resData = JSON.parse(resText);
+          var rawText = resData &&
+            resData.candidates &&
+            resData.candidates[0] &&
+            resData.candidates[0].content &&
+            resData.candidates[0].content.parts &&
+            resData.candidates[0].content.parts[0] &&
+            resData.candidates[0].content.parts[0].text;
+
           if (rawText) {
-            const parsed = JSON.parse(rawText);
-            return res.status(200).json(parsed);
+            var parsed = JSON.parse(rawText);
+            return sendJson(200, parsed);
           }
         } else {
-          const errJson = await geminiRes.json().catch(() => ({}));
-          const errMsg = errJson?.error?.message || ('HTTP ' + geminiRes.status);
-          lastErrorDetail = '[' + model + '] ' + errMsg;
+          var errObj = {};
+          try { errObj = JSON.parse(resText); } catch (e) {}
+          var detail = (errObj.error && errObj.error.message) ? errObj.error.message : ('HTTP ' + geminiRes.status);
+          lastErrorMsg = '[' + model + '] ' + detail;
 
-          // API 키 자체가 잘못된 경우(API_KEY_INVALID) 즉시 중단하고 안내
-          if (errMsg.includes('API key not valid') || errJson?.error?.status === 'INVALID_ARGUMENT' && errMsg.includes('API key')) {
-            return res.status(400).json({
-              error: 'Vercel에 등록된 GEMINI_KEY 값이 유효하지 않습니다. 키 값을 다시 확인해 주세요. (' + errMsg + ')'
+          if (detail.indexOf('API key not valid') !== -1 || detail.indexOf('API_KEY_INVALID') !== -1) {
+            return sendJson(400, {
+              error: '등록된 GEMINI_KEY가 올바르지 않습니다. 키 값을 다시 확인해 주세요. (' + detail + ')'
             });
           }
         }
-      } catch (err) {
-        lastErrorDetail = err.message;
+      } catch (innerErr) {
+        lastErrorMsg = '[' + model + '] ' + (innerErr.message || String(innerErr));
       }
     }
 
-    return res.status(502).json({
-      error: 'AI 분석 요청 실패: ' + (lastErrorDetail || '잠시 후 다시 시도해 주세요.')
+    return sendJson(502, {
+      error: 'Gemini 호출 실패: ' + (lastErrorMsg || '응답 없음')
     });
-  } catch (error) {
-    console.error('Serverless API Error:', error);
-    return res.status(500).json({
-      error: '서버 처리 오류: ' + (error.message || '알 수 없는 오류')
+  } catch (fatalErr) {
+    return sendJson(500, {
+      error: '서버 실행 오류: ' + (fatalErr && fatalErr.message ? fatalErr.message : String(fatalErr))
     });
   }
-};
+}
