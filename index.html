@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: https://upload.wikimedia.org; media-src blob:; connect-src 'self' https://ko.wikipedia.org; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: https://upload.wikimedia.org; media-src blob:; connect-src 'self' https://lookalike-five.vercel.app https://ko.wikipedia.org; base-uri 'none'; form-action 'none'">
 <meta name="color-scheme" content="dark">
 <title>닮은꼴 유명인 찾기 (연예·스포츠·셀럽)</title>
 <style>
@@ -300,9 +300,9 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
 'use strict';
 (function () {
 
-  // 보안 강화: 클라이언트 코드에서 GEMINI_API_KEY 완전히 제거
+  // 범용 엔드포인트: Vercel 도메인, GitHub Pages(github.io), 로컬 파일 어디서든 작동
   var CONFIG = Object.freeze({
-    API_ENDPOINT: '/api/analyze',
+    API_ENDPOINT: 'https://lookalike-five.vercel.app/api/analyze',
     MAX_FILE_BYTES: 10 * 1024 * 1024,
     MAX_SIDE: 1024,
     JPEG_QUALITY: 0.85,
@@ -492,10 +492,11 @@ button.primary:hover:not(:disabled) { filter: brightness(1.06); border-color: tr
     showPreview(url);
   }
 
-  /* ---------- 백엔드 프록시(/api/analyze) 호출 ---------- */
+  /* ---------- 백엔드 프록시 호출 ---------- */
   async function requestBackendAnalyze(base64Data, mimeType, category) {
     var res = await fetch(CONFIG.API_ENDPOINT, {
       method: 'POST',
+      mode: 'cors',
       headers: {
         'Content-Type': 'application/json'
       },
